@@ -7,17 +7,21 @@ import androidx.fragment.app.FragmentActivity;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Paint;
 import android.location.Location;
 import android.os.Build;
 import android.os.Bundle;
+import android.text.InputType;
 import android.text.Layout;
 import android.text.StaticLayout;
 import android.text.TextPaint;
 import android.util.Log;
+import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.TextView;
@@ -31,6 +35,7 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapView;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
@@ -50,6 +55,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private GoogleMap mMap;
     private ActivityMapsBinding binding;
     private static final int REQUEST_CODE = 1;
+    private String newText = "";
     private static final long UPDATE_INTERVAL = 5000;
     private static final long FASTEST_INTERVAL = 3000;
     private static int count;
@@ -101,6 +107,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         }
 
+
         mMap.setOnPolygonClickListener(new GoogleMap.OnPolygonClickListener() {
             @Override
             public void onPolygonClick(@NonNull Polygon polygon) {
@@ -130,7 +137,33 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                  Location.distanceBetween(points.get(0).latitude, points.get(0).longitude,points.get(1).latitude,
                          points.get(1).longitude,results);
 
-                Toast.makeText(MapsActivity.this, "clicked "+results[0]/1000+"Km",Toast.LENGTH_LONG).show();
+                Toast.makeText(MapsActivity.this, "distance is "+results[0]/1000+"Km",Toast.LENGTH_LONG).show();
+            }
+        });
+        mMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
+            @Override
+            public boolean onMarkerClick(@NonNull Marker marker) {
+                AlertDialog.Builder builder = new AlertDialog.Builder(MapsActivity.this);
+                builder.setTitle("Title");
+                final EditText input = new EditText(MapsActivity.this);
+                input.setInputType(InputType.TYPE_CLASS_TEXT);
+                builder.setView(input);
+                builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialogInterface, int i) {
+                        newText = input.getText().toString();
+                        marker.setIcon(createPureTextIcon(newText));
+                        marker .setTitle(newText);
+                    }
+                });
+                builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialogInterface, int i) {
+                        dialogInterface.cancel();
+                    }
+                });
+                builder.show();
+                return false;
             }
         });
         mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
@@ -172,10 +205,34 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
 
     }
+    public BitmapDescriptor createPureTextIcon(String text) {
+
+        Paint textPaint = new Paint(); // Adapt to your needs
+        textPaint.setTextSize(50);
+        float textWidth = textPaint.measureText(text);
+        float textHeight = textPaint.getTextSize();
+        int width = (int) (textWidth);
+        int height = (int) (textHeight);
+
+        Bitmap image = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(image);
+
+        canvas.translate(0, height);
+
+        // For development only:
+        // Set a background in order to see the
+        // full size and positioning of the bitmap.
+        // Remove that for a fully transparent icon.
+        canvas.drawColor(Color.LTGRAY);
+
+        canvas.drawText(text, 0, 0, textPaint);
+        BitmapDescriptor icon = BitmapDescriptorFactory.fromBitmap(image);
+        return icon;
+    }
     private void checkMarker(LatLng latLng){
         MarkerOptions options = new MarkerOptions().position(latLng).title("check")
                 .draggable(true)
-                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE))
+                .icon(createPureTextIcon("A"))
                 .snippet("Nice place");
         favMarker = mMap.addMarker(options);
         favMarker.remove();
@@ -213,7 +270,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         MarkerOptions options = new MarkerOptions().position(latLng).title(title)
                 .draggable(true)
-                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE))
+                .icon(createPureTextIcon(title))
                 .snippet("Nice place");
 
                 lastMarker = favMarker;
@@ -238,7 +295,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 markerList.add(favMarker);
                 if(markerList.size() == POLYGON_SIDES){
                     Log.d("here:","it logged"+markerList.size());
-
+                    lastMarker = markerList.get(0);
+                    drawLine(favMarker);
                     drawShape();
         }
 
